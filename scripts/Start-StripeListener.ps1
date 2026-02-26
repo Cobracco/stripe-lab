@@ -70,13 +70,41 @@ if (-not (Test-Path -LiteralPath $logPath)) {
     New-Item -ItemType File -Path $logPath -Force | Out-Null
 }
 Add-Content -LiteralPath $logPath -Value ("`n----- listener restart {0} -----" -f (Get-Date -Format "s"))
+$logScanStartByte = (Get-Item -LiteralPath $logPath).Length
 
 $process = Start-Process -FilePath "stripe" -ArgumentList $arguments -PassThru -NoNewWindow -RedirectStandardOutput $logPath -RedirectStandardError $logErrPath
 Set-Content -LiteralPath $pidPath -Value ([string]$process.Id) -Encoding ascii
 
-$webhookSecret = Wait-StripeLabWebhookSecret -LogPath $logPath -TimeoutSeconds $SecretTimeoutSeconds
+Start-Sleep -Seconds 1
+$processStillRunning = $null -ne (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)
+if (-not $processStillRunning) {
+    Remove-Item -LiteralPath $pidPath -Force -ErrorAction SilentlyContinue
+    $stderrTail = if (Test-Path -LiteralPath $logErrPath) {
+        (Get-Content -LiteralPath $logErrPath -Tail 40 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
+    }
+    else {
+        ""
+    }
+
+    $errorDetails = if ([string]::IsNullOrWhiteSpace($stderrTail)) {
+        "Nessun dettaglio su stderr. Controlla i log: '$logPath' e '$logErrPath'."
+    }
+    else {
+        "Ultime righe stderr: $stderrTail"
+    }
+
+    throw "Il listener Stripe per app '$($app.name)' si e' chiuso subito dopo l'avvio. $errorDetails"
+}
+
+$webhookSecret = Wait-StripeLabWebhookSecret -LogPath $logPath -TimeoutSeconds $SecretTimeoutSeconds -FromByte $logScanStartByte
 if (-not [string]::IsNullOrWhiteSpace($webhookSecret)) {
     Set-Content -LiteralPath $secretPath -Value $webhookSecret -Encoding ascii
+}
+
+$processStillRunning = $null -ne (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)
+if (-not $processStillRunning) {
+    Remove-Item -LiteralPath $pidPath -Force -ErrorAction SilentlyContinue
+    throw "Il listener Stripe per app '$($app.name)' non e' piu' in esecuzione. Controlla '$logPath' e '$logErrPath'."
 }
 
 $status = if (-not [string]::IsNullOrWhiteSpace($webhookSecret)) { "started" } else { "started_secret_pending" }

@@ -302,15 +302,26 @@ function Wait-StripeLabWebhookSecret {
         [Parameter(Mandatory = $true)]
         [string]$LogPath,
 
-        [int]$TimeoutSeconds = 20
+        [int]$TimeoutSeconds = 20,
+
+        [long]$FromByte = 0
     )
 
     $endTime = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $endTime) {
         if (Test-Path -LiteralPath $LogPath) {
-            $content = Get-Content -LiteralPath $LogPath -Raw -ErrorAction SilentlyContinue
-            if ($content -and $content -match "whsec_[A-Za-z0-9]+") {
-                return $Matches[0]
+            $item = Get-Item -LiteralPath $LogPath
+            if ($item.Length -gt 0) {
+                $bytes = [System.IO.File]::ReadAllBytes($LogPath)
+                $startIndex = if ($FromByte -gt 0 -and $FromByte -lt $bytes.Length) { [int]$FromByte } else { 0 }
+                $length = $bytes.Length - $startIndex
+
+                if ($length -gt 0) {
+                    $text = [System.Text.Encoding]::UTF8.GetString($bytes, $startIndex, $length)
+                    if ($text -match "whsec_[A-Za-z0-9]+") {
+                        return $Matches[0]
+                    }
+                }
             }
         }
 

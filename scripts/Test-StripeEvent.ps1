@@ -23,6 +23,11 @@ $paths = $config.Paths
 Ensure-StripeLabDirectories -Paths $paths
 
 $app = Get-StripeLabApp -Apps $config.Apps -AppName $AppName
+$pidPath = Join-Path $paths.RunDir ("{0}.pid" -f $app.name)
+$pidInfo = Get-StripeLabPidInfo -PidFilePath $pidPath
+if (-not $pidInfo.IsRunning) {
+    throw "Listener non attivo per app '$($app.name)'. Avvia prima Start-StripeListener.ps1."
+}
 
 $envVarName = [string]$app.stripe_secret_env
 $secretKey = Get-StripeLabEnvVarValue -Name $envVarName
