@@ -296,6 +296,74 @@ function Remove-StripeLabStalePid {
     return $false
 }
 
+function Get-StripeLabLogTextSlice {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$LogPath,
+
+        [long]$FromByte = 0
+    )
+
+    if (-not (Test-Path -LiteralPath $LogPath)) {
+        return $null
+    }
+
+    try {
+        $stream = [System.IO.File]::Open(
+            $LogPath,
+            [System.IO.FileMode]::Open,
+            [System.IO.FileAccess]::Read,
+            [System.IO.FileShare]::ReadWrite
+        )
+
+        try {
+            $length = [long]$stream.Length
+            if ($length -le 0) {
+                return ""
+            }
+
+            $startIndex = if ($FromByte -gt 0 -and $FromByte -lt $length) { $FromByte } else { 0 }
+            $bytesToRead = $length - $startIndex
+            if ($bytesToRead -le 0) {
+                return ""
+            }
+
+            if ($bytesToRead -gt [int]::MaxValue) {
+                throw "Log troppo grande da leggere in memoria."
+            }
+
+            [void]$stream.Seek($startIndex, [System.IO.SeekOrigin]::Begin)
+            $buffer = New-Object byte[] ([int]$bytesToRead)
+            $offset = 0
+
+            while ($offset -lt $buffer.Length) {
+                $read = $stream.Read($buffer, $offset, $buffer.Length - $offset)
+                if ($read -le 0) {
+                    break
+                }
+
+                $offset += $read
+            }
+
+            if ($offset -le 0) {
+                return ""
+            }
+
+            return [System.Text.Encoding]::UTF8.GetString($buffer, 0, $offset)
+        }
+        finally {
+            $stream.Dispose()
+        }
+    }
+    catch [System.IO.IOException] {
+        return $null
+    }
+    catch [System.UnauthorizedAccessException] {
+        return $null
+    }
+}
+
 function Wait-StripeLabWebhookSecret {
     [CmdletBinding()]
     param(
@@ -309,20 +377,9 @@ function Wait-StripeLabWebhookSecret {
 
     $endTime = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $endTime) {
-        if (Test-Path -LiteralPath $LogPath) {
-            $item = Get-Item -LiteralPath $LogPath
-            if ($item.Length -gt 0) {
-                $bytes = [System.IO.File]::ReadAllBytes($LogPath)
-                $startIndex = if ($FromByte -gt 0 -and $FromByte -lt $bytes.Length) { [int]$FromByte } else { 0 }
-                $length = $bytes.Length - $startIndex
-
-                if ($length -gt 0) {
-                    $text = [System.Text.Encoding]::UTF8.GetString($bytes, $startIndex, $length)
-                    if ($text -match "whsec_[A-Za-z0-9]+") {
-                        return $Matches[0]
-                    }
-                }
-            }
+        $text = Get-StripeLabLogTextSlice -LogPath $LogPath -FromByte $FromByte
+        if ($null -ne $text -and $text -match "whsec_[A-Za-z0-9]+") {
+            return $Matches[0]
         }
 
         Start-Sleep -Milliseconds 500
@@ -347,20 +404,9 @@ function Wait-StripeLabLogPattern {
 
     $endTime = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $endTime) {
-        if (Test-Path -LiteralPath $LogPath) {
-            $item = Get-Item -LiteralPath $LogPath
-            if ($item.Length -gt 0) {
-                $bytes = [System.IO.File]::ReadAllBytes($LogPath)
-                $startIndex = if ($FromByte -gt 0 -and $FromByte -lt $bytes.Length) { [int]$FromByte } else { 0 }
-                $length = $bytes.Length - $startIndex
-
-                if ($length -gt 0) {
-                    $text = [System.Text.Encoding]::UTF8.GetString($bytes, $startIndex, $length)
-                    if ($text -match $Pattern) {
-                        return $true
-                    }
-                }
-            }
+        $text = Get-StripeLabLogTextSlice -LogPath $LogPath -FromByte $FromByte
+        if ($null -ne $text -and $text -match $Pattern) {
+            return $true
         }
 
         Start-Sleep -Milliseconds 500
