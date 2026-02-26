@@ -2,9 +2,12 @@
 
 [![CI](https://github.com/Cobracco/stripe-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/Cobracco/stripe-lab/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](./CHANGELOG.md)
 
 Demo repository for a reusable local Stripe CLI lab on Windows Server 2025.
 It helps teams test multiple local applications with isolated sandbox keys and webhook listeners.
+
+Current stable version: `1.0.1`
 
 ## Demo Scope
 
@@ -160,6 +163,7 @@ See [SECURITY.md](./SECURITY.md).
 - `Rifiutata chiave live`: replace `sk_live_*` with `sk_test_*`.
 - `Webhook signature verification failed`: update app webhook secret using `secrets\<app>.webhook.secret`.
 - `404 endpoint`: verify `base_url` and `webhook_path`, and ensure local app is running.
+- `Listener non attivo` right after start: update to version `1.0.1+` and restart listener.
 
 ## Contributing
 

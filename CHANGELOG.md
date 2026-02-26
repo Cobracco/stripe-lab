@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.1] - 2026-02-26
+
+### Fixed
+
+- PowerShell 5.1 compatibility by removing direct dependence on `$IsWindows`.
+- Improved listener diagnostics when `stripe listen` exits early.
+- Safer log polling with file-lock handling during secret/event detection.
+- `Test-StripeEvent.ps1` now fails fast if the target listener is not running.
+- Removed `--print-secret` from listener startup to keep `stripe listen` process alive.
+
 ## [1.0.0] - 2026-02-26
 
 ### Added
