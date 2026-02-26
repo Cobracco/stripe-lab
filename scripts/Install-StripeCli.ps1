@@ -4,7 +4,14 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-if (-not $IsWindows) {
+$isWindowsPlatform = if (Get-Variable -Name IsWindows -ErrorAction SilentlyContinue) {
+    [bool]$IsWindows
+}
+else {
+    $env:OS -eq "Windows_NT"
+}
+
+if (-not $isWindowsPlatform) {
     throw "Questo script e' pensato per Windows Server 2025."
 }
 
