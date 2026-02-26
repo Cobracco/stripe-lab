@@ -60,8 +60,7 @@ $eventsArg = Get-StripeLabEventsArgument -Events @($app.events)
 $arguments = @(
     "listen",
     "--events", $eventsArg,
-    "--forward-to", $forwardUrl,
-    "--print-secret"
+    "--forward-to", $forwardUrl
 )
 
 $env:STRIPE_API_KEY = $secretKey
