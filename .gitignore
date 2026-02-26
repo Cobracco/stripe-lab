@@ -1,0 +1,12 @@
+# Runtime artifacts
+logs/*
+secrets/*
+run/*
+
+# Keep folder placeholders
+!logs/.gitkeep
+!secrets/.gitkeep
+!run/.gitkeep
+
+# Optional local overrides
+config/apps.local.json

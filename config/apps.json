@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "apps": [
+    {
+      "name": "freelance-web",
+      "repo": "FreeLance",
+      "sandbox": "freelance-sandbox",
+      "base_url": "http://localhost:3000",
+      "webhook_path": "/api/webhooks/stripe",
+      "events": [
+        "checkout.session.completed",
+        "payment_intent.payment_failed"
+      ],
+      "stripe_secret_env": "STRIPE_APP_FREELANCE_SK_TEST",
+      "enabled": true
+    },
+    {
+      "name": "client-portal",
+      "repo": "ClientPortal",
+      "sandbox": "client-portal-sandbox",
+      "base_url": "http://localhost:3001",
+      "webhook_path": "/api/webhooks/stripe",
+      "events": [
+        "checkout.session.completed",
+        "payment_intent.payment_failed"
+      ],
+      "stripe_secret_env": "STRIPE_APP_CLIENT_PORTAL_SK_TEST",
+      "enabled": true
+    },
+    {
+      "name": "redemptor-hub",
+      "repo": "RedemptorHub",
+      "sandbox": "redemptor-hub-sandbox",
+      "base_url": "http://localhost:3002",
+      "webhook_path": "/api/webhooks/stripe",
+      "events": [
+        "checkout.session.completed",
+        "payment_intent.payment_failed"
+      ],
+      "stripe_secret_env": "STRIPE_APP_REDEMPTOR_HUB_SK_TEST",
+      "enabled": true
+    },
+    {
+      "name": "admin-console",
+      "repo": "AdminConsole",
+      "sandbox": "admin-console-sandbox",
+      "base_url": "http://localhost:3003",
+      "webhook_path": "/api/webhooks/stripe",
+      "events": [
+        "checkout.session.completed",
+        "payment_intent.payment_failed"
+      ],
+      "stripe_secret_env": "STRIPE_APP_ADMIN_CONSOLE_SK_TEST",
+      "enabled": true
+    }
+  ]
+}
