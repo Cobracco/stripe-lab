@@ -1,10 +1,42 @@
-# Stripe Lab Multi-Repo (Windows Server 2025)
+# Stripe Lab (Demo)
 
-Laboratorio centralizzato per test locali Stripe su piu repository con Stripe CLI nativa e listener isolati per app.
+[![CI](https://github.com/Cobracco/stripe-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/Cobracco/stripe-lab/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 
-## Struttura prevista
+Demo repository for a reusable local Stripe CLI lab on Windows Server 2025.
+It helps teams test multiple local applications with isolated sandbox keys and webhook listeners.
 
-Il repository va clonato in `C:\stripe-lab`.
+## Demo Scope
+
+- This project is **for demo/local testing**.
+- Use **only** Stripe test keys (`sk_test_*`).
+- The scripts block live keys (`sk_live_*`).
+- No secrets are committed in this repository.
+
+## Features
+
+- Centralized app registry: `config/apps.json`
+- Dedicated listener per app
+- Single-app and batch start/stop commands
+- Runtime webhook secret extraction to local file
+- Per-app logs and PID tracking
+- Trigger test events on a selected app
+- Status dashboard command for all configured apps
+
+## Architecture
+
+```mermaid
+flowchart LR
+  A["Stripe CLI listener (per app)"] --> B["Local endpoint: base_url + webhook_path"]
+  A --> C["logs/<app>.log"]
+  A --> D["secrets/<app>.webhook.secret"]
+  A --> E["run/<app>.pid"]
+  F["config/apps.json"] --> A
+```
+
+## Repository Layout
+
+Clone to `C:\stripe-lab` on Windows:
 
 - `C:\stripe-lab\bin\`
 - `C:\stripe-lab\config\apps.json`
@@ -13,120 +45,129 @@ Il repository va clonato in `C:\stripe-lab`.
 - `C:\stripe-lab\secrets\`
 - `C:\stripe-lab\run\`
 
-## Prerequisiti
+## Quick Start
 
-1. PowerShell 7+
-2. Stripe CLI installata
-3. Accesso internet verso Stripe API
-4. Chiavi test per ogni app/sandbox
-
-Installazione Stripe CLI (consigliata):
-
-```powershell
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-irm get.scoop.sh | iex
-scoop install stripe
-stripe version
-```
-
-## Bootstrap ambiente
+1. Install Stripe CLI:
 
 ```powershell
 cd C:\stripe-lab
+.\scripts\Install-StripeCli.ps1
+```
+
+2. Initialize folders and (optional) ACL lockdown:
+
+```powershell
 .\scripts\Initialize-StripeLab.ps1 -RootPath C:\stripe-lab -LockDownAcl
 ```
 
-## Configurazione app (`config/apps.json`)
-
-Campi obbligatori per ogni app:
-
-- `name` (univoco)
-- `repo`
-- `sandbox`
-- `base_url`
-- `webhook_path`
-- `events` (array)
-- `stripe_secret_env` (nome env var)
-- `enabled` (boolean)
-
-Esempio endpoint per FreeLance:
-- `base_url`: `http://localhost:3000`
-- `webhook_path`: `/api/webhooks/stripe`
-
-## Segreti (mai in JSON)
-
-Imposta una variabile ambiente per ogni app (solo `sk_test_*`):
+3. Configure app registry:
 
 ```powershell
-[Environment]::SetEnvironmentVariable("STRIPE_APP_FREELANCE_SK_TEST", "sk_test_xxx", "Machine")
-[Environment]::SetEnvironmentVariable("STRIPE_APP_CLIENT_PORTAL_SK_TEST", "sk_test_xxx", "Machine")
-[Environment]::SetEnvironmentVariable("STRIPE_APP_REDEMPTOR_HUB_SK_TEST", "sk_test_xxx", "Machine")
-[Environment]::SetEnvironmentVariable("STRIPE_APP_ADMIN_CONSOLE_SK_TEST", "sk_test_xxx", "Machine")
+Copy-Item .\config\apps.example.json .\config\apps.json -Force
 ```
 
-Le script rifiutano chiavi `sk_live_*`.
-
-## Comandi operativi
-
-### Avvio listener singolo
+4. Set one test key as machine env var:
 
 ```powershell
-.\scripts\Start-StripeListener.ps1 -AppName freelance-web -RootPath C:\stripe-lab
+[Environment]::SetEnvironmentVariable("STRIPE_APP_DEMO_APP_1_SK_TEST", "sk_test_xxx", "Machine")
 ```
 
-### Avvio listener multipli
+5. Start one listener:
 
 ```powershell
-.\scripts\Start-StripeListeners.ps1 -OnlyEnabled -RootPath C:\stripe-lab
+.\scripts\Start-StripeListener.ps1 -AppName demo-app-1 -RootPath C:\stripe-lab
 ```
 
-### Stato ambiente
+6. Trigger one test event:
+
+```powershell
+.\scripts\Test-StripeEvent.ps1 -AppName demo-app-1 -Event checkout.session.completed -RootPath C:\stripe-lab
+```
+
+7. Check global status:
 
 ```powershell
 .\scripts\Get-StripeStatus.ps1 -RootPath C:\stripe-lab
 ```
 
-### Trigger evento su app specifica
+## Commands
+
+- Start one app:
 
 ```powershell
-.\scripts\Test-StripeEvent.ps1 -AppName freelance-web -Event checkout.session.completed -RootPath C:\stripe-lab
+.\scripts\Start-StripeListener.ps1 -AppName <name> -RootPath C:\stripe-lab
 ```
 
-### Stop listener
+- Start all enabled apps:
 
 ```powershell
-.\scripts\Stop-StripeListeners.ps1 -AppName freelance-web -RootPath C:\stripe-lab
+.\scripts\Start-StripeListeners.ps1 -OnlyEnabled -RootPath C:\stripe-lab
+```
+
+- Stop one app:
+
+```powershell
+.\scripts\Stop-StripeListeners.ps1 -AppName <name> -RootPath C:\stripe-lab
+```
+
+- Stop all:
+
+```powershell
 .\scripts\Stop-StripeListeners.ps1 -RootPath C:\stripe-lab
 ```
 
-## Runtime files
+- Trigger one Stripe event for one app:
 
-- PID: `run\<app>.pid`
-- Log: `logs\<app>.log`
-- Error log: `logs\<app>.err.log`
-- Webhook secret runtime: `secrets\<app>.webhook.secret`
+```powershell
+.\scripts\Test-StripeEvent.ps1 -AppName <name> -Event <stripe_event> -RootPath C:\stripe-lab
+```
 
-## Onboarding nuova app
+## App Config Contract
 
-1. Crea sandbox dedicato in Stripe Dashboard.
-2. Crea una env var Machine con `sk_test_*` della sandbox.
-3. Aggiungi entry in `config/apps.json`.
-4. Avvia listener con `Start-StripeListener.ps1`.
-5. Copia il secret da `secrets\<app>.webhook.secret` nella configurazione dell'app target (`STRIPE_WEBHOOK_SECRET`).
-6. Esegui `Test-StripeEvent.ps1` per convalida E2E.
+Each app in `config/apps.json` must include:
 
-## Troubleshooting rapido
+- `name` (unique)
+- `repo`
+- `sandbox`
+- `base_url`
+- `webhook_path`
+- `events` (string array)
+- `stripe_secret_env` (name of env var containing `sk_test_*`)
+- `enabled` (boolean)
 
-- `Stripe CLI non trovato`: verifica PATH e `stripe version`.
-- `Environment variable ... non impostata`: crea la env var indicata in `stripe_secret_env`.
-- `Rifiutata chiave live`: stai usando `sk_live_*`; sostituisci con `sk_test_*`.
-- `Webhook signature verification failed`: riallinea `STRIPE_WEBHOOK_SECRET` con il file in `secrets\` dopo restart listener.
-- `404 endpoint`: correggi `base_url`/`webhook_path` e verifica che l'app sia in ascolto.
-- `listener_log_match=false` in test evento: listener non attivo o evento non incluso in `events`.
+A ready-to-edit template is available in `config/apps.example.json`.
 
-## Sicurezza
+## Runtime Files (Not Versioned)
 
-- Solo modalita test in ambiente locale.
-- Nessun secret nel repository.
-- Cartella `secrets` esclusa dal versionamento.
-- Log senza dump chiavi complete.
+- PID file: `run\<app>.pid`
+- Stdout log: `logs\<app>.log`
+- Stderr log: `logs\<app>.err.log`
+- Webhook secret: `secrets\<app>.webhook.secret`
+
+## Security Notes
+
+- Keep `secrets/` local and private.
+- Never paste full API keys into logs/issues.
+- Rotate test keys if exposed.
+- Do not reuse this setup for production webhook handling.
+
+See [SECURITY.md](./SECURITY.md).
+
+## Troubleshooting
+
+- `Stripe CLI non trovato`: confirm `stripe version` works.
+- `Environment variable ... non impostata`: set the env var declared in `stripe_secret_env`.
+- `Rifiutata chiave live`: replace `sk_live_*` with `sk_test_*`.
+- `Webhook signature verification failed`: update app webhook secret using `secrets\<app>.webhook.secret`.
+- `404 endpoint`: verify `base_url` and `webhook_path`, and ensure local app is running.
+
+## Contributing
+
+- Read [CONTRIBUTING.md](./CONTRIBUTING.md)
+- Follow [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+- Use issue templates for bug reports/features
+- See change history in [CHANGELOG.md](./CHANGELOG.md)
+
+## License
+
+MIT License. See [LICENSE](./LICENSE).

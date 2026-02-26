@@ -10,3 +10,9 @@ run/*
 
 # Optional local overrides
 config/apps.local.json
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

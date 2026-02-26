@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PowerShell
+        shell: pwsh
+        run: |
+          $PSVersionTable.PSVersion
+
+      - name: Validate JSON config
+        shell: pwsh
+        run: |
+          Get-Content -Raw ./config/apps.json | ConvertFrom-Json | Out-Null
+          Get-Content -Raw ./config/apps.example.json | ConvertFrom-Json | Out-Null
+
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path ./scripts -Filter *.ps1 -File
+          if (-not $files) { throw "No PowerShell scripts found." }
+
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors.Count -gt 0) {
+              Write-Host "Syntax errors in $($file.FullName):"
+              $errors | ForEach-Object { Write-Host $_.Message }
+              throw "PowerShell syntax validation failed"
+            }
+          }
+
+      - name: Dry-run initialize script
+        shell: pwsh
+        run: |
+          $tempRoot = Join-Path $env:RUNNER_TEMP "stripe-lab-ci"
+          ./scripts/Initialize-StripeLab.ps1 -RootPath $tempRoot
+          if (-not (Test-Path (Join-Path $tempRoot "config"))) {
+            throw "Initialize script did not create expected structure"
+          }
